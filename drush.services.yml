@@ -1,0 +1,5 @@
+services:
+  lp_programs.commands:
+    class: \Drupal\lp_programs\Commands\LpProgramsImportLotCommands
+    tags:
+      - { name: drush.command }

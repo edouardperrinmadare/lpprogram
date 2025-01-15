@@ -1,0 +1,22 @@
+services:
+  lp_programs.lot_manager:
+    class: Drupal\lp_programs\Services\LotManagerService
+    arguments: [ '@entity_type.manager','@config.factory','@token','@sftp_client']
+  lp_programs.program_manager:
+    class: Drupal\lp_programs\Services\ProgramManagerService
+    arguments: ['@entity_type.manager','@database']
+  lp_programs.feeds_events_subscriber:
+    class: '\Drupal\lp_programs\EventSubscriber\FeedsEventsSubscriber'
+    arguments: ['@entity_type.manager']
+    tags:
+      - { name: 'event_subscriber' }
+  lp_programs.proximity_search:
+    class: Drupal\lp_programs\Services\ProgramProximitySearch
+    arguments: ['@settings','@config.factory']
+  lp_programs.near_by_search:
+    class: Drupal\lp_programs\Services\ProgramNearBySearchService
+    arguments: ['@entity_type.manager','@google_maps_services.api.endpoint_manager','@config.factory']
+  lp_programs.drush.commands:
+    class: Drupal\lp_programs\Commands\LpProgramsDrushCommand
+    tags:
+      - { name: drush.command }

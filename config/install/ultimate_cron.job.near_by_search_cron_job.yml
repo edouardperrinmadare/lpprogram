@@ -1,0 +1,28 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - lp_programs
+title: 'Lp programs crawl near by search'
+id: near_by_search_cron_job
+weight: 0
+module: lp_programs
+callback: lp_programs_near_by_search_cron_job
+scheduler:
+  id: simple
+  configuration:
+    rules:
+      - '0+@ 0 * * *'
+launcher:
+  id: serial
+  configuration:
+    timeouts:
+      lock_timeout: 3600
+    launcher:
+      thread: 0
+logger:
+  id: database
+  configuration:
+    method: '3'
+    expire: 1209600
+    retain: 1000

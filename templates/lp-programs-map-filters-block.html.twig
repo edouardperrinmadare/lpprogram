@@ -1,0 +1,104 @@
+{#
+/**
+ * @file
+ * Theme implementation for Map Filter block template.
+ */
+#}
+
+<div{{ attributes.addClass(classes) }}>
+  <div class="container filters-group">
+    
+    <div class="filter-hide"></div>
+    <div class="view-mode-filters">
+      <div class="btn-switch-display-container d-lg-none">
+        <button class="btn btn-switch-display on" data-group="list-map-switch"
+                data-target="#lp-programs-view-cardslist">
+          <img src="/{{ base_path ~ directory }}/assets/images/icomoon/list.svg" alt="List">{{ 'Liste'|t }}
+        </button>
+        <button class="btn btn-switch-display" data-group="list-map-switch" data-target="#lp-programs-view-map">
+          <i class="icon-france"></i>{{ 'Carte'|t }}
+        </button>
+      </div>
+
+      <button type="button" class="btn btn-outline-contact white" data-toggle="modal" data-target="#filters">
+        <img src="/{{ base_path ~ directory }}/assets/images/icon/ico-filter.svg" alt="List">Filtres <span
+          class="filters-count"></span>
+      </button>
+    </div>
+
+    <div class="modal fade" id="filters" tabindex="-1" aria-labelledby="filters" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Filtres</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">
+                <i class="icon-close"></i>
+              </span>
+            </button>
+          </div>
+          <div class="modal-body">
+            {{ drupal_block('views_exposed_filter_block:programmes_madare-page_1', wrapper=false) }}
+            {# <div class="form">
+              <div class="facet-container button-list">
+                <h4>Nombre de pièces</h4>
+                {{ drupal_block('facet_block:nbre_pieces') }}
+              </div>
+              <div class="facet-container">
+                <h4>Votre budget</h4>
+                <div class="price-min-max-container">
+                  <div class="price-min-container">
+                    <label for="price-min">Prix minimum</label>
+                    <div class="input-group">
+                      <input id="price-min" type="text" name="fake_prix_min" value="" size="10" maxlength="10" data-name-target="prix_min" class="form-text">
+                      <div class="input-group-append">
+                        <div class="input-group-text">€</div>
+                      </div>
+                      <span class="price-min-max-separator"></span>
+                    </div>
+                  </div>
+                  <div class="price-max-container">
+                    <label for="price-max">Prix maximum</label>
+                    <div class="input-group">
+                      <input id="price-max" type="text" name="fake_prix_max" value="" size="10" maxlength="10" data-name-target="prix_max" class="form-text">                      <div class="input-group-append">
+                        <div class="input-group-text">€</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="facet-container">
+                <h4>Aides et dispositifs</h4>
+                {{ drupal_block('facet_block:dispositifs_lots') }}
+              </div>
+              <div class="facet-container">
+                <h4>Avancement du projet</h4>
+                {{ drupal_block('facet_block:statut') }}
+              </div>
+              <div class="facet-container">
+                <h4>Commercialisation du projet</h4>
+                {{ drupal_block('facet_block:gabari') }}
+              </div>
+              <div class="facet-container">
+                <h4>Les +</h4>
+                {{ drupal_block('facet_block:les_plus') }}
+              </div>
+              <div class="facet-container">
+                <h4>Nature</h4>
+                {{ drupal_block('facet_block:content_nature') }}
+              </div>
+              <div class="filter-alter"></div>
+            </div> #}
+            
+          </div>
+          <div class="modal-footer modal-footer--sticky">
+            <a href="/nos-logements-neufs" class="btn btn-outline-contact js-reset-filter">Réinitialiser</a>
+            <button type="button" class="btn btn-lg btn-primary js-btn-see-results" data-dismiss="modal">
+              Voir les<span class="result-count-modal"></span>&nbsp;résultats
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,278 @@
+<?php
+
+/**
+ * @file
+ * Contains lp_slider_program.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+use \Drupal\Core\Entity\EntityInterface;
+use \Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use \Drupal\Core\Form\FormStateInterface;
+use \Drupal\node\NodeInterface;
+use \Drupal\lp_slider_program\Entity\SliderProgramInterface;
+use \Drupal\node\Entity\Node;
+
+/**
+ * Implements hook_help().
+ */
+function lp_slider_program_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the lp_slider_program module.
+    case 'help.page.lp_slider_program':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function lp_slider_program_theme() {
+  $theme = [];
+  $theme['slider_program'] = [
+    'render element' => 'elements',
+    'file' => 'slider_program.page.inc',
+    'template' => 'slider_program',
+  ];
+  $theme['slider_program_content_add_list'] = [
+    'render element' => 'content',
+    'variables' => ['content' => NULL],
+    'file' => 'slider_program.page.inc',
+  ];
+  $theme['lp_slider_program_count_proximity'] = [
+    'variables' => ['count' => 0],
+  ];
+  return $theme;
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK().
+ */
+function lp_slider_program_theme_suggestions_slider_program(array $variables) {
+  $suggestions = [];
+  $entity = $variables['elements']['#slider_program'];
+  $sanitized_view_mode = strtr($variables['elements']['#view_mode'], '.', '_');
+
+  $suggestions[] = 'slider_program__' . $sanitized_view_mode;
+  $suggestions[] = 'slider_program__' . $entity->bundle();
+  $suggestions[] = 'slider_program__' . $entity->bundle() . '__' . $sanitized_view_mode;
+  $suggestions[] = 'slider_program__' . $entity->id();
+  $suggestions[] = 'slider_program__' . $entity->id() . '__' . $sanitized_view_mode;
+  return $suggestions;
+}
+
+/**
+ * Implements hook_entity_extra_field_info().
+ */
+function lp_slider_program_entity_extra_field_info() {
+
+  $extra['slider_program']['home_new']['display']['count_program_proximity'] = [
+    'label' => t('Compte le nombre de programme a proximité'),
+    'description' => t('Affiche le nombre de programme à proximité'),
+    'weight' => 100,
+    'visible' => FALSE,
+  ];
+
+  $extra['slider_program']['home_new']['display']['url'] = [
+    'label' => t('Lien vers la recherche préfiltrée'),
+    'weight' => 100,
+    'visible' => FALSE,
+  ];
+
+  return $extra;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_view().
+ */
+function lp_slider_program_slider_program_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if ($display->getComponent('count_program_proximity') && $entity instanceof SliderProgramInterface) {
+    _lp_slider_program_slider_program_view_count_proximity($entity, $build);
+  }
+  if ($display->getComponent('url') && $entity instanceof SliderProgramInterface) {
+    _lp_slider_program_slider_program_view_url_proximity($entity, $build);
+  }
+}
+
+/**
+ * @param \Drupal\node\NodeInterface $node
+ * @param array $build
+ *
+ * @return false|void
+ */
+function _lp_slider_program_slider_program_view_url_proximity(SliderProgramInterface $node, array &$build) {
+  if (!$node->hasField('field_geofield')) {
+    return FALSE;
+  }
+
+  $field_geofield = $node->get('field_geofield')->getValue();
+  if (empty($field_geofield)) {
+    return FALSE;
+  }
+
+  $url = '/nos-logements-neufs';
+
+  if (!empty($node->field_address->administrative_area)) {
+    $place = $node->field_address->administrative_area;
+  }
+
+  if (!empty($node->field_address->locality)) {
+    $place = $node->field_address->locality;
+  }
+
+  // Construct url query.
+  if (!empty($node->field_address->locality) || !empty($node->field_address->administrative_area)) {
+
+    $data = [
+      'place' => $place,
+      'field_geol' => [
+        'value' => 20,
+        'source_configuration' => [
+          'origin_address'=> $field_geofield[0]['lat'] . ',' . $field_geofield[0]['lon']
+        ]
+      ],
+      'commercialisation_du_projet' => [
+        'forsale' => 'forsale'
+      ],
+      'sort_bef_combine' => 'proximite_ASC',
+    ];
+  }
+
+  if (isset($data['place'])) {
+    $url .= '?' . http_build_query($data);
+  }
+
+  $build['url'] = ['#markup' => $url];
+  return TRUE;
+}
+
+/**
+ * @param \Drupal\node\NodeInterface $node
+ * @param array $build
+ *
+ * @return false|void
+ */
+function _lp_slider_program_slider_program_view_count_proximity(SliderProgramInterface $node, array &$build) {
+  if (!$node->hasField('field_address')) {
+    return FALSE;
+  }
+
+  $field_address = $node->get('field_address')->getValue();
+  $field_geofield = $node->get('field_geofield')->getValue();
+
+  $results = _lp_slider_program_slider_search_count($field_address[0], $field_geofield[0]);
+
+  $build['count_program_proximity'] = [
+    '#theme' => 'lp_slider_program_count_proximity',
+    '#count' => count($results),
+  ];
+
+  return TRUE;
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function lp_slider_program_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  if ($form_id == 'slider_program_home_new_edit_form' || $form_id == 'slider_program_home_new_add_form') {
+
+    $form['field_list_integer']['count_program'] = [
+      '#type' => 'button',
+      '#value' => t('Calculer'),
+      '#weight' => 20,
+      '#prefix' => '<div id="lp-program-count"></div>',
+      '#limit_validation_errors' => [],
+      '#ajax' => [
+        'callback' => '_lp_slider_program_form_count_program',
+        'wrapper' => 'lp-program-count',
+      ],
+    ];
+
+    // Move publish field at the bottom of the form. (Not working).
+    //    $form['status']['#weight'] = 100;
+  }
+}
+
+/**
+ * Ajax callback form to display count of new program.
+ *
+ * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *
+ * @return string[]
+ */
+function _lp_slider_program_form_count_program(array &$form, FormStateInterface $form_state) {
+  $field_address = $form_state->getValue('field_address');
+  $field_geofield = $form_state->getValue('field_geofield');
+
+  $results = _lp_slider_program_slider_search_count($field_address[0]['address'], $field_geofield[0]['value']);
+
+  $tpl_count = [
+    '#theme' => 'lp_slider_program_count_proximity',
+    '#count' => count($results),
+  ];
+
+  return [
+    '#markup' => '<div id="lp-program-count">' . \Drupal::service('renderer')
+        ->render($tpl_count) . '</div>',
+  ];
+}
+
+
+/**
+ * Fetches programs within a certain distance from a given latitude and longitude.
+ *
+ * @param array $field_address Exemple d'adresse, doit être ajusté selon le champ utilisé.
+ * @param array $field_geol Les données géographiques, ajuster selon votre champ.
+ * @return array
+ */
+function _lp_slider_program_slider_search_count($field_address, $field_geol) {
+  $latitude = $field_geol['lat'];
+  $longitude = $field_geol['lon'];
+  $maxDistance = 100; // Maximum distance in kilometers.
+
+  $query = \Drupal::entityQuery('node')
+    ->condition('type', 'program') // Remplacer par votre type de contenu.
+    ->condition('status', 1)
+    ->condition('field_program_layout', 'forsale');
+
+
+  $nids = $query->execute();
+  $nodes = Node::loadMultiple($nids);
+
+  $results = [];
+  foreach ($nodes as $node) {
+    if ($node->hasField('field_geol')) { // Remplacer 'field_geol' par votre champ géographique.
+      $geoField = $node->get('field_geol')->getValue(); // Assurez-vous que cela correspond à la structure de votre champ.
+      if (!empty($geoField)) {
+        $distance = _calculate_distance($latitude, $longitude, $geoField[0]['lat'], $geoField[0]['lon']);
+        if ($distance <= $maxDistance) {
+          $results[] = $node;
+        }
+      }
+    }
+  }
+
+  return $results;
+}
+function _calculate_distance($lat1, $lon1, $lat2, $lon2) {
+  // Convert degrees to radians.
+  $lat1 = deg2rad($lat1);
+  $lon1 = deg2rad($lon1);
+  $lat2 = deg2rad($lat2);
+  $lon2 = deg2rad($lon2);
+
+  // Calculate distance.
+  $deltaLat = $lat2 - $lat1;
+  $deltaLon = $lon2 - $lon1;
+  $a = sin($deltaLat/2) * sin($deltaLat/2) + cos($lat1) * cos($lat2) * sin($deltaLon/2) * sin($deltaLon/2);
+  $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+  $distance = $c * 6371; // Earth radius in kilometers.
+  return $distance;
+
+}

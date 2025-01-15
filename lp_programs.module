@@ -1,0 +1,529 @@
+<?php
+
+use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\lp_programs\Batch\BatchLotImport;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\node\NodeInterface;
+use Drupal\Core\Render\BubbleableMetadata;
+use Drupal\lp_programs\Form\ContactForm;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+
+/**
+ * Implements hook_theme().
+ */
+function lp_programs_theme($existing, $type, $theme, $path) {
+  return [
+    'lp_programs_map_filters_block' => [
+      'variables' => [],
+    ],
+
+    'lp_programs_alert_mail' => [
+      'variables' => ['program_data' => []],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function lp_programs_form_views_exposed_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+  if ($form['#id'] == 'views-exposed-form-programmes-madare-page-1') {
+    // Alter to hide views exposed filter field geol.
+    $form['field_geol_wrapper']['#attributes']['style'] = 'display:none;';
+    // Add place autocomplete textfield.
+    $form['place'] = [
+      '#type' => 'search',
+      '#size' => 30,
+      '#weight' => 0,
+      '#attributes' => [
+        'placeholder' => t('Rechercher une ville ou une région'),
+        'id' => 'place-autocomplete-field',
+      ],
+    ];
+  }
+
+  if ($form['#id'] == 'views-exposed-form-program-page-recent-program-list') {
+    // Alter to hide views exposed filter field geol.
+    $form['field_geol_wrapper']['#attributes']['style'] = 'display:none;';
+
+    // Remove sort widget title.
+    $form['sort_bef_combine']['#attributes']['style'] = 'display:none;';
+    unset($form['sort_bef_combine']['#title']);
+  }
+}
+
+function lp_programs_inline_entity_form_table_fields_alter(&$fields, $context) {
+  //Determine the bundle and entity type from $context
+  if ($context['field_name'] === 'field_program_lots') {
+    unset($fields['status']);
+
+    $fields['field_lot_nature'] = [
+      'type' => 'field',
+      'label' => t('Nature'),
+      'weight' => 2,
+    ];
+    $fields['field_lot_type'] = [
+      'type' => 'field',
+      'label' => t('Type'),
+      'weight' => 3,
+    ];
+    $fields['field_lot_type_complement'] = [
+      'type' => 'field',
+      'label' => t('Complément'),
+      'weight' => 4,
+    ];
+  }
+}
+
+
+
+/**
+ * Implements hook_form_alter().
+ */
+function lp_programs_form_alter(array &$form, FormStateInterface $form_state, $form_id) {
+  // Add state form property to hide/show lot import/manual.
+  if ($form_id === 'node_program_form' || $form_id === 'node_program_edit_form') {
+    _lp_rograms_form_type_lot_states($form, 'field_program_lots', 'field_type_lot', ['value' => 'import']);
+    _lp_rograms_form_type_lot_states($form, 'field_manual_lots', 'field_type_lot', ['value' => 'manual']);
+    _lp_rograms_form_ads_states($form, 'field_id_ads');
+    _lp_rograms_form_ads_states($form, 'field_image_ads');
+    _lp_rograms_form_ads_states($form, 'field_description_ads');
+    _lp_rograms_form_ads_states($form, 'field_google_keywords');
+    $form['field_is_generate_poi']['widget']['value']['#default_value'] = 0;
+    $form['field_is_sending_mail_alert']['widget']['value']['#default_value'] = 0;
+  }
+}
+
+function _lp_rograms_form_ads_states(array &$form, $field_name) {
+  if (empty($form[$field_name])) {
+    return FALSE;
+  }
+  $form[$field_name]['#states'] = [
+    'visible' => [
+      [':input[name="field_ads[fb]"]' => ['checked' => TRUE]],
+      [':input[name="field_ads[gl]"]' => ['checked' => TRUE]],
+    ],
+    'required' => [
+      [':input[name="field_ads[fb]"]' => ['checked' => TRUE]],
+      [':input[name="field_ads[gl]"]' => ['checked' => TRUE]],
+    ],
+  ];
+}
+
+/**
+ * Internal function to display lot import or manual depending on
+ * field_type_lot.
+ *
+ * @param array $form
+ * @param $field_name
+ * @param $field_condition
+ * @param array $field_condition_value
+ *
+ * @return bool
+ */
+function _lp_rograms_form_type_lot_states(array &$form, $field_name, $field_condition, array $field_condition_value) {
+  if (empty($form[$field_name])) {
+    return FALSE;
+  }
+  $form[$field_name]['#states'] = [
+    'visible' => [
+      ':input[name="' . $field_condition . '"]' => $field_condition_value,
+    ],
+    'required' => [
+      ':input[name="' . $field_condition . '"]' =>
+        $field_condition_value,
+    ],
+  ];
+  return TRUE;
+}
+
+/**
+ * Implements hook_entity_update().
+ */
+function lp_programs_entity_update(EntityInterface $entity) {
+  if ($entity->getEntityTypeId() === 'node' && $entity->bundle() === 'program') {
+    $field_is_mail_alert = $entity->get('field_is_sending_mail_alert');
+    if ($field_is_mail_alert->getString() == 1) {
+      $alert_flag = \Drupal::entityTypeManager()->getStorage('flag')->loadByProperties([
+        'id' => 'program_alert',
+      ]);
+
+      if (empty($alert_flag)) {
+        return;
+      }
+
+      // Get flagging users.
+      $user_flags = \Drupal::service('flag')->getFlaggingUsers($entity, reset($alert_flag));
+
+      if (empty($user_flags)) {
+        return;
+      }
+
+      // Get queue to add and process alert mail progressively.
+      /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
+      $queue_factory = \Drupal::service('queue');
+
+      /** @var \Drupal\Core\Queue\QueueInterface $queue */
+      $queue = $queue_factory->get('program_alert_mail_queue_worker');
+
+      foreach ($user_flags as $user) {
+        // Set mail template and variables.
+        $mail_body = [
+          '#theme' => 'lp_programs_alert_mail',
+          '#program_data' => [
+            'title' => $entity->label(),
+            'status' => $entity->get('field_program_status')->getString(),
+            'url' => $entity->toUrl()->setAbsolute()->toString(),
+            'user_firstname' => $user->get('field_user_firstname')->getString(),
+            'user_name' => $user->get('field_user_name')->getString(),
+            ],
+        ];
+
+        // Set send mail parameters.
+        $queued_item = [
+          'module' => 'lp_programs',
+          'key' => 'update_program',
+          'to' => $user->get('mail')->getString(),
+          'langcode' => $user->getPreferredLangcode(),
+          'params' => [
+            'message' => \Drupal::service('renderer')->render($mail_body),
+            'node_title' => 'Alerte LP Promotion // ' . $entity->label(),
+            ],
+          'send' => TRUE,
+        ];
+
+        // Add item to queue.
+        $queue->createItem($queued_item);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function lp_programs_entity_delete(EntityInterface $entity) {
+
+  // Delete all lots associated when delete programs.
+  if ($entity->getEntityTypeId() === 'node' && $entity->bundle() === 'program') {
+    /** @var  $program_manger \Drupal\lp_programs\Services\ProgramManagerService */
+    $program_manger = \Drupal::service('lp_programs.program_manager');
+    $program_manger->removeReferencedEntities($entity, 'field_program_lots');
+    $program_manger->removeReferencedEntities($entity, 'field_manual_lots');
+  }
+}
+
+/**
+ * Implements hook_entity_presave().
+ */
+function lp_programs_entity_presave(EntityInterface $entity) {
+  if ($entity->getEntityTypeId() === 'node' && $entity->bundle() === 'program') {
+    // Check general config generate POI config.
+    $enable = \Drupal::configFactory()
+        ->get('lp_programs.near_by_search.settings')
+        ->get('enable_presave') ?? TRUE;
+
+    // Check this program POI config.
+    if (empty($enable)) {
+      $enable = $entity->field_is_generate_poi->value;
+    }
+
+    // Generate POI.
+    if (!empty($enable)) {
+      /** @var  $near_by_search_service \Drupal\lp_programs\Services\ProgramNearBySearchService */
+      $near_by_search_service = \Drupal::service('lp_programs.near_by_search');
+      $near_by_search_service->updateProgramEntity($entity);
+    }
+
+    // Sync price fields.
+    /** @var  $program_manager \Drupal\lp_programs\Services\ProgramManagerService */
+    $program_manager = \Drupal::service('lp_programs.program_manager');
+    $program_manager->updatePriceProgram($entity);
+    $program_manager->updateSurfaceProgram($entity);
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Add third party settings for tooltip.
+ * {@inheritdoc}
+ */
+function lp_programs_form_node_type_edit_form_alter(&$form, FormStateInterface $form_state) {
+
+  if ($form["type"]["#default_value"] === 'program') {
+    $entity_type_load = $form_state->getFormObject()->getEntity();
+    $third = $entity_type_load->getThirdPartySetting('lp_programs', 'form');
+    $form['form'] = [
+      '#type' => 'details',
+      '#tree' => TRUE,
+      '#open' => TRUE,
+      '#title' => t('Lp promotions'),
+      '#group' => 'additional_settings',
+    ];
+    $form['form']['synch_field_lot'] = [
+      '#type' => 'checkboxes',
+      '#title' => t('Synchronize field lot'),
+      '#description' => t('Check what you want to synchronize with lots field'),
+      '#options' => ['price' => t('Price'), 'surface' => t('Surface')],
+      '#default_value' => $third['synch_field_lot'] ?? ['price', 'surface'],
+    ];
+    $form['#entity_builders'][] = '_lp_programs_node_form_type_form_builder';
+  }
+}
+
+/**
+ * Callback to set third party settings.
+ */
+function _lp_programs_node_form_type_form_builder($entity_type, \Drupal\Core\Config\Entity\ConfigEntityInterface $type, &$form, FormStateInterface $form_state) {
+
+  if ($form["type"]["#default_value"] === 'program') {
+    $settings = $form_state->getValue('form');
+    if (!empty($settings)) {
+      $type->setThirdPartySetting('lp_programs', 'form', $settings);
+      return;
+    }
+    $type->unsetThirdPartySetting('lp_programs', 'form');
+  }
+}
+
+/**
+ * Callback ultimate cron job.
+ */
+function lp_programs_near_by_search_cron_job() {
+  // Get programs needs to be update.
+  $enable = \Drupal::configFactory()
+      ->get('lp_programs.near_by_search.settings')
+      ->get('enable_cron') ?? TRUE;
+  if (!empty($enable)) {
+    /** @var  $near_by_search \Drupal\lp_programs\Services\ProgramNearBySearchService */
+    $near_by_search = \Drupal::service('lp_programs.near_by_search');
+    $program_array = $near_by_search->getProgramToUpdate();
+    /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
+    $queue_factory = \Drupal::service('queue');
+    /** @var \Drupal\Core\Queue\QueueInterface $queue */
+    $queue = $queue_factory->get('near_by_search_queue_worker');
+    foreach ($program_array as $program) {
+      // Add to queue.
+      if (!$program instanceof NodeInterface) {
+        continue;
+      }
+      $queue->createItem($program);
+    }
+  }
+
+}
+
+/**
+ * Callback ultimate cron job.
+ */
+function lp_programs_import_lot_cron_job() {
+  // Get programs needs to be update.
+  $lot_settins = \Drupal::configFactory()->get('lp_programs.lot_settings')->get('cron');
+
+  if (_lp_programs_can_start_cron_lot()) {
+    $mode = $lot_settins['import_mode'];
+    /** @var  $lp_program  \Drupal\lp_programs\Services\LotManagerService */
+    $lp_program = \Drupal::service('lp_programs.lot_manager');
+    $path_files = $lp_program->getXmlSftpFiles();
+    $files_xml = $lp_program->openXmlFilePath($path_files);
+    $timestamp_recent = 0;
+    $file_to_import = [];
+    // Get the xml files on FTP.
+    foreach ($files_xml as $file_xml) {
+      // Include all files.
+      if ($mode === 'all_files') {
+        $file_to_import[] = $file_xml['path'];
+        continue;
+      }
+      // Include only the more recent one.
+      if ($mode === 'date_file') {
+        // Take date inside xml file.
+        $date = (string) $file_xml['xml']->ENTETE->DATE;
+        $timezone = new DateTimeZone('Europe/Paris');
+        $date_time = DateTime::createFromFormat('Y-m-d H/i/s +', $date, $timezone);
+        // Take modification date.
+        $timestamp = $file_xml['mtime'];
+        if ($date_time instanceof DateTime) {
+          $timestamp = $date_time->getTimestamp() ?? $file_xml['mtime'];
+        }
+        if ($timestamp > $timestamp_recent) {
+          // Reset array files.
+          $file_to_import = [];
+          $timestamp_recent = $timestamp;
+          $file_to_import[] = $file_xml;
+        }
+      }
+    }
+
+    /** @var \Drupal\Core\Queue\QueueFactory $queue_factory */
+    $queue_factory = \Drupal::service('queue');
+    /** @var \Drupal\Core\Queue\QueueInterface $queue */
+    $queue = $queue_factory->get('lot_xml_queue_worker');
+
+    foreach ($file_to_import as $local_path) {
+      // Get data inside xml and add it to queue.
+      $program_array = $lp_program->extractProgramXmlToArray($local_path['xml']);
+      $program_array = $lp_program->transformProgramXmlToArray($program_array);
+
+      foreach ($program_array as $pr_array) {
+        $queue->createItem($pr_array);
+      }
+    }
+    // Save timestamp of last cron.
+    \Drupal::state()->set('lp_program.lot_import_date', time());
+  }
+
+}
+
+/**
+ * Test if the cron task can run import lot.
+ *
+ * @return bool
+ */
+function _lp_programs_can_start_cron_lot() {
+  $lot_settins = \Drupal::configFactory()
+    ->get('lp_programs.lot_settings')->get('cron');
+  if (empty($lot_settins['enable_cron'] ?? TRUE)) {
+    return FALSE;
+  }
+  $last_import_date = \Drupal::state()->get('lp_program.lot_import_date');
+  if (empty($last_import_date)) {
+    return TRUE;
+  }
+  $hours = $lot_settins['hours'] ?? 7;
+  $date_max = new DrupalDateTime('now -' . $hours . ' hours');
+  if ($date_max->getTimestamp() < $last_import_date) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/**
+ * Implements hook_mail().
+ */
+function lp_programs_mail($key, &$message, $params) {
+
+  switch ($key) {
+    case 'contact':
+      $mail_settings = \Drupal::configFactory()
+        ->get('lp_programs.contact_settings')
+        ->get('mail');
+      $message['from'] = $mail_settings['from'] ?? '';
+      if ($mail_settings['from_default_mail'] == TRUE || empty($mail_settings['from'])) {
+        $message['from'] = \Drupal::config('system.site')->get('mail');
+      }
+      else {
+        // Set headers from.
+        $message['headers']['From'] = $message['headers']['Return-Path'] = $message['headers']['Sender'] = $message['from'];
+        if (!empty($mail_settings['from_name'])) {
+          $message['headers']['From'] = $mail_settings['from_name'] . ' ' . $message['headers']['From'];
+        }
+      }
+      $message['subject'] = t('Contact :') . $params['subject'];
+      $message['body'][] = $params['message'];
+      $message['attachments'] = $params['attachments'] ?? [];
+      break;
+
+    case 'update_program':
+      $message['from'] = \Drupal::config('system.site')->get('mail');
+      $message['subject'] = $params['node_title'];
+      $message['body'][] = $params['message'];
+      break;
+  }
+}
+
+/**
+ * Implements hook_token_info().
+ */
+function lp_programs_token_info() {
+  $info = [];
+  $token['firstname'] = [
+    'name' => t('Firstaname'),
+    'description' => t("Display firstname data of program contact."),
+  ];
+  $token['surname'] = [
+    'name' => t('Surname'),
+    'description' => t("Display surname data of program contact."),
+  ];
+  $token['postal_code'] = [
+    'name' => t('Postal code'),
+    'description' => t("Display postal code data of program contact."),
+  ];
+  $token['locality'] = [
+    'name' => t('Locality'),
+    'description' => t("Display locality data of program contact."),
+  ];
+
+  $token['message'] = [
+    'name' => t('Message'),
+    'description' => t("Display message data of program contact."),
+  ];
+
+  $token['newsletter'] = [
+    'name' => t('Newsletter'),
+    'description' => t("Display if user want newsletter of program contact."),
+  ];
+
+  $token['phone'] = [
+    'name' => t('Phone'),
+    'description' => t("Display phone data of program contact."),
+  ];
+
+  $type = [
+    'name' => t('LP promotion program'),
+    'description' => t('Tokens from lp program module.'),
+  ];
+  $info = [
+    'types' => ['lp_programs' => $type],
+    'tokens' => ['lp_programs' => $token],
+  ];
+  return $info;
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function lp_programs_tokens($type, $tokens, array $data, array $options, BubbleableMetadata $bubbleable_metadata) {
+  $replacements = [];
+  if (empty($data['lp_programs'])) {
+    return $replacements;
+  }
+  foreach ($tokens as $name => $original) {
+    if (!empty($data['lp_programs'][$name])) {
+      $replacements[$original] = $data['lp_programs'][$name];
+    }
+  }
+
+  return $replacements;
+}
+
+/**
+ * Implements hook_entity_extra_field_info().
+ */
+function lp_programs_entity_extra_field_info() {
+
+  $extra['node']['program']['display']['program_contact_form'] = [
+    'label' => t('Contact form'),
+    'description' => t('Display form contact.'),
+    'weight' => 100,
+    'visible' => FALSE,
+  ];
+
+  return $extra;
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_view().
+ */
+function lp_programs_node_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode) {
+  if ($display->getComponent('program_contact_form')) {
+
+    $form = \Drupal::formBuilder()->getForm(ContactForm::class);
+    $build['program_contact_form'] = [
+      '#markup' => \Drupal::service('renderer')
+        ->render($form),
+    ];
+  }
+}

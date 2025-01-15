@@ -1,0 +1,31 @@
+lp_programs.search:
+  version: VERSION
+  js:
+    js/lp_programs.search.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+
+lp_programs.node:
+  version: VERSION
+  js:
+    js/lp_programs.node.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+
+lp_programs.searchform:
+  version: VERSION
+  js:
+    js/lp_programs.searchform.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+
+lp_programs.gmap:
+  js:
+    https://maps.googleapis.com/maps/api/js?v=3.exp&language=fr&key=AIzaSyBMcE7b1vzbm6V3aXL4pi2UsSLA7drCTsQ&libraries=places&_=1641481938017: {
+      type: external,
+      minified: true,
+      attributes: { async: true }
+    }

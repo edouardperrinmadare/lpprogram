@@ -1,0 +1,30 @@
+<?php
+use Drupal\Core\Config\Entity\ConfigEntityType;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+function lp_programs_update_8001() {
+  \Drupal::service('module_installer')->install(['sftp_client']);
+}
+
+
+function lp_programs_update_8002() {
+  \Drupal::service('module_installer')->install(['lp_place_api']);
+}
+
+/**
+ * Implements hook_update_N().
+ */
+function lp_programs_update_8003() {
+  \Drupal::entityDefinitionUpdateManager()->installEntityType(new ConfigEntityType([
+    'id' => 'near_by_search_program',
+    'label' => new TranslatableMarkup('Near by search program entity'),
+    'config_prefix' => 'near_by_search_program',
+    'admin_permission' => 'administer site configuration',
+    'entity_keys' => ['id' => 'id','label'=>'label','uuid'=>'uuid'],
+    'config_export' => [
+      'id',
+      'label',
+      'uuid',
+      'google_type',
+    ],
+  ]));
+}

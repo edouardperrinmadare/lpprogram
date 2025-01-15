@@ -1,0 +1,5 @@
+entity.near_by_search_program.add_form:
+  route_name: entity.near_by_search_program.add_form
+  title: 'Add Near by search program'
+  appears_on:
+    - entity.near_by_search_program.collection

@@ -1,0 +1,9 @@
+name: LP Programs
+description: Manage programs
+type: module
+core: 8.x
+package: lp_promotion
+core_version_requirement: ^8 || ^9
+dependencies:
+  - sftp_client
+  - lp_place_api

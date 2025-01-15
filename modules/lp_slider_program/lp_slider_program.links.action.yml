@@ -1,0 +1,10 @@
+entity.slider_program.add_form:
+  route_name: entity.slider_program.add_page
+  title: 'Add Slider program'
+  appears_on:
+    - entity.slider_program.collection
+entity.slider_program_type.add_form:
+  route_name: entity.slider_program_type.add_form
+  title: 'Add Slider program type'
+  appears_on:
+    - entity.slider_program_type.collection

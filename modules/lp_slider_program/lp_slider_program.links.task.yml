@@ -1,0 +1,17 @@
+# Slider program routing definition
+
+entity.slider_program.canonical:
+  route_name: entity.slider_program.canonical
+  base_route: entity.slider_program.canonical
+  title: 'View'
+
+entity.slider_program.edit_form:
+  route_name: entity.slider_program.edit_form
+  base_route: entity.slider_program.canonical
+  title: 'Edit'
+
+entity.slider_program.delete_form:
+  route_name:  entity.slider_program.delete_form
+  base_route:  entity.slider_program.canonical
+  title: Delete
+  weight: 10

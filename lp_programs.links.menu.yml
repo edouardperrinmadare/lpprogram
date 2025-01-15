@@ -1,0 +1,53 @@
+lp_programs.admin_program:
+  title: Programmes
+  description: 'Admin programmes'
+  route_name: view.admin_program.page_2
+  parent: gestion-du-site
+  menu_name: gestion-du-site
+  weight: -10
+
+
+lp_programs.near_by_search_settings:
+  title: 'Settings POI program'
+  route_name: lp_programs.near_by_search_settings
+  description: 'Settings POI program crawl neay by search'
+  parent: lp_programs.admin_program
+  weight: 99
+lp_programs.contact_settings:
+  title: 'Settings contact program'
+  route_name: lp_programs.contact_settings
+  description: 'Settings contact program'
+  parent: lp_programs.admin_program
+  weight: 99
+lp_programs.import_old_program_link:
+  title: 'Import programme liés'
+  route_name: lp_programs.import_old_program_link
+  description: 'Import des anciens programmes liés'
+  parent: lp_programs.admin_program
+  weight: 99
+lp_programs.admin_lot:
+  title: 'Lots'
+  route_name: view.admin_lots.page_1
+  description: 'Admin lot'
+  parent: lp_programs.admin_program
+  weight: 99
+lp_programs.lot_settings:
+  title: 'Settings lot import'
+  route_name: lp_programs.lot_settings
+  description: 'Settings lot import'
+  parent: lp_programs.admin_lot
+  weight: 99
+lp_programs.import_lot:
+  title: 'Import manuel lot'
+  route_name: lp_programs.import_lot
+  description: 'Import manuel des lots'
+  parent: lp_programs.admin_lot
+  weight: 99
+
+# Near by search program menu items definition
+entity.near_by_search_program.collection:
+  title: 'Near by search program'
+  route_name: entity.near_by_search_program.collection
+  description: 'List Near by search program (bundles)'
+  parent: system.admin_structure
+  weight: 99

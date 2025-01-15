@@ -1,0 +1,38 @@
+{#
+/**
+ * @file slider_program.html.twig
+ * Default theme implementation to present Slider program data.
+ *
+ * This template is used when viewing Slider program pages.
+ *
+ *
+ * Available variables:
+ * - content: A list of content items. Use 'content' to print all content, or
+ * - attributes: HTML attributes for the container element.
+ *
+ * @see template_preprocess_slider_program()
+ *
+ * @ingroup themeable
+ */
+#}
+
+{% set classes = [
+  'slider_program',
+  'node--card',
+  'node--card-slider--program',
+] %}
+
+<div{{ attributes.addClass(classes) }} onclick="window.location = '{{ content.url }}';">
+  <div class="node--card-img">
+    <a href="{{ content.url }}">
+      {{- content.field_image -}}
+      <div class="node--card-img-over-text">
+        <div class="node--card-title h5">{{- content.name -}}</div>
+        <div class="node--card-subtitle h5">{{- content.field_title -}}</div>
+      </div>
+    </a>
+  </div>
+  <div class="node--card-body">
+    <div class="node--card-count">{{- content.count_program_proximity -}}</div>
+  </div>
+</div>

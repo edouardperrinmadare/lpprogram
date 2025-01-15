@@ -1,0 +1,17 @@
+
+# Slider program menu items definition
+entity.slider_program.collection:
+  title: 'Slider program list'
+  route_name: entity.slider_program.collection
+  description: 'List Slider program entities'
+  parent: system.admin_structure
+  weight: 100
+
+
+# Slider program type menu items definition
+entity.slider_program_type.collection:
+  title: 'Slider program type'
+  route_name: entity.slider_program_type.collection
+  description: 'List Slider program type (bundles)'
+  parent: system.admin_structure
+  weight: 99

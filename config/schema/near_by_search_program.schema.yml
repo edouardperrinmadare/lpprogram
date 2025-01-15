@@ -1,0 +1,17 @@
+lp_programs.near_by_search_program.*:
+  type: config_entity
+  label: 'Near by search program config'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    uuid:
+      type: string
+    google_type:
+      type: sequence
+      label: 'Google type'
+      sequence:
+        type: string

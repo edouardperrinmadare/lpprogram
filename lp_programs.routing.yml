@@ -1,0 +1,74 @@
+lp_programs.admin:
+  path: '/admin/lp-programs'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'lp programs'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+
+lp_programs.contact_settings:
+  path: '/admin/lp-programs/config/contact'
+  defaults:
+    _title: 'Settings contact program'
+    _form: 'Drupal\lp_programs\Form\ContactSettingsForm'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+lp_programs.near_by_search_settings:
+  path: '/admin/lp-programs/config/near-by-search'
+  defaults:
+    _title: 'Settings POI program'
+    _form: 'Drupal\lp_programs\Form\NearBySearchSettingsForm'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+
+lp_programs.lot_settings:
+  path: '/admin/lp-programs/config/import/lot'
+  defaults:
+    _title: 'Settings Import lot'
+    _form: 'Drupal\lp_programs\Form\LotSettingsForm'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+
+lp_programs.import_lot:
+  path: '/admin/lp-programs/import/lot'
+  defaults:
+    _title: 'Import manual lot'
+    _form: 'Drupal\lp_programs\Form\ImportLotForm'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+lp_programs.count_poi:
+  path: '/admin/lp-programs/count-poi'
+  defaults:
+    _title: 'Count POI of all programs'
+    _form: 'Drupal\lp_programs\Form\CountPoiForm'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+
+lp_programs.import_old_program_link:
+  path: '/admin/lp-programs/import/old/link'
+  defaults:
+    _title: 'Import old program link'
+    _form: 'Drupal\lp_programs\Form\ImportOldProgramLinkForm'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _admin_route: TRUE
+
+lp_programs.view:
+  path: '/program/{node}'
+  defaults:
+    _entity_view: 'node.modal'
+  requirements:
+    _permission: 'access content'

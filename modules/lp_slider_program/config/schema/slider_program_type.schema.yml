@@ -1,0 +1,12 @@
+lp_slider_program.slider_program_type.*:
+  type: config_entity
+  label: 'Slider program type config'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    uuid:
+      type: string

@@ -1,0 +1,22 @@
+add slider program entities:
+  title: 'Create new Slider program entities'
+
+administer slider program entities:
+  title: 'Administer Slider program entities'
+  description: 'Allow to access the administration form to configure Slider program entities.'
+  restrict access: true
+
+delete slider program entities:
+  title: 'Delete Slider program entities'
+
+edit slider program entities:
+  title: 'Edit Slider program entities'
+
+view published slider program entities:
+  title: 'View published Slider program entities'
+
+view unpublished slider program entities:
+  title: 'View unpublished Slider program entities'
+
+permission_callbacks:
+  - \Drupal\lp_slider_program\SliderProgramPermissions::generatePermissions
